@@ -1,9 +1,7 @@
-import './App.css'
+import Catalog from './routes/Catalog';
 
-function App() {
+export default function App() {
   return (
-    <h1>DSCommerce</h1>
+    <Catalog /> 
   );
 }
-
-export default App
