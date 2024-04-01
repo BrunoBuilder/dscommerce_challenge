@@ -5,6 +5,10 @@ import product from '../../../assets/img/computer.png';
 import { useEffect, useState } from 'react';
 import * as productService from '../../../services/product-service';
 import { ProductDTO } from '../../../models/products';
+import SearchBar from '../../../components/SearchBar';
+import ButtonNexPage from '../../../components/ButtonNextPage';
+import DialogInfo from '../../../components/DialogInfo';
+import DialogConfirmation from '../../../components/DialogConfirmation';
 
 type QueryParams = {
   page: number;
@@ -12,6 +16,16 @@ type QueryParams = {
 }
 
 export default function ProductListing() {
+  const [dialogInfoData, setDialogInfoData] = useState({
+    visible: false,
+    message: "Operação com sucesso!"
+  });
+
+  const [dialogConfirmationData, setDialogConfirmationData] = useState({
+    visible: false,
+    id: 0,
+    message: "Tem certeza?"
+  });
   const [isLastPage, setIsLastPage] = useState(false);
   const [products, setProducts] = useState<ProductDTO[]>([]);
   const [queryParams, setQueryParams] = useState<QueryParams>({
@@ -28,6 +42,39 @@ export default function ProductListing() {
       });
   }, [queryParams]);
 
+  function handleSearch(searchText: string) {
+    setProducts([]);
+    setQueryParams({ ...queryParams, page: 0, name: searchText });
+  }
+
+  function handleNextPageClick() {
+    setQueryParams({ ...queryParams, page: queryParams.page + 1 })
+  }
+
+  function handleDialogInfoClose() {
+    setDialogInfoData({ ...dialogInfoData, visible: false });
+  }
+
+  function handleDeleteClick(productId: number) {
+    setDialogConfirmationData({ ...dialogConfirmationData, id: productId, visible: true });
+  }
+
+  function handleDialogConfirmationAnswer(answer: boolean, productId: number) {
+    if (answer) {
+      productService.deleteById(productId)
+        .then(() => {
+          setProducts([]);
+          setQueryParams({ ...queryParams, page: 0 });
+        }).catch(error => {
+          setDialogInfoData({
+            visible: true,
+            message: error.response.data.error
+          });
+        })
+    }
+    setDialogConfirmationData({ ...dialogConfirmationData, visible: false });
+  }
+
 
   return (
     <main>
@@ -37,13 +84,7 @@ export default function ProductListing() {
         <div className="dsc-btn-page-container dsc-mb20">
           <div className="dsc-btn dsc-btn-white">Novo</div>
         </div>
-
-        <form className="dsc-search-bar">
-          <button type="submit">🔎︎</button>
-          <input type="text" placeholder="Nome do produto" />
-          <button type="reset">❌</button>
-        </form>
-
+        <SearchBar onSearch={handleSearch} />
         <table className="dsc-table dsc-mb20 dsc-mt20">
           <thead>
             <tr>
@@ -58,21 +99,36 @@ export default function ProductListing() {
           <tbody>
             {
               products.map(product => (
-                <tr>
-                  <td className="dsc-tb576">{product.id}</td>
+                <tr key={product.id}>
+                  <td className="dsc-tb576" >{product.id}</td>
                   <td><img className="dsc-product-listing-image" src={product.imgUrl} alt={product.name} /></td>
                   <td className="dsc-tb768">R$ {product.price.toFixed(2)}</td>
                   <td className="dsc-txt-left">{product.name}</td>
                   <td><img className="dsc-product-listing-btn" src={editIcon} alt="Editar" /></td>
-                  <td><img className="dsc-product-listing-btn" src={deleteIcon} alt="Deletar" /></td>
+                  <td><img onClick={() => handleDeleteClick(product.id)} className="dsc-product-listing-btn" src={deleteIcon} alt="Deletar" /></td>
                 </tr>
               ))
             }
           </tbody>
         </table>
-
-        <div className="dsc-btn-next-page">Carregar mais</div>
+        {
+          !isLastPage &&
+          <ButtonNexPage onNextPage={handleNextPageClick} />
+        }
       </section>
+      {
+        dialogInfoData.visible &&
+        <DialogInfo message={dialogInfoData.message}
+          onDialogClose={handleDialogInfoClose} />
+      }
+
+      {
+        dialogConfirmationData.visible &&
+        <DialogConfirmation
+          id={dialogConfirmationData.id}
+          message={dialogConfirmationData.message}
+          onDialogAnswer={handleDialogConfirmationAnswer} />
+      }
     </main>
   );
 }
