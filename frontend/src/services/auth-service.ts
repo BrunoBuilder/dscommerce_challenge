@@ -1,9 +1,11 @@
 import { AxiosRequestConfig } from 'axios';
 import QueryString from "qs";
-import { CredentialsDTO } from "../models/auth";
+import { AccessTokenPayloadDTO, CredentialsDTO, RoleEnum } from "../models/auth";
 import { requestBackend } from '../utils/request';
 import { CLIENT_ID, CLIENT_SECRET } from "../utils/system";
 import * as accessTokenRepository from '../localStorage/access-token-repository';
+import jwtDecode from 'jwt-decode';
+
 
 export function loginRequest(loginData: CredentialsDTO) {
   const headers = {
@@ -19,8 +21,6 @@ export function loginRequest(loginData: CredentialsDTO) {
     data: requestBody,
     headers
   }
-  console.log(requestBody);
-
   return requestBackend(config);
 }
 
@@ -33,5 +33,35 @@ export function saveAcessToken(token: string) {
 }
 
 export function getAcessToken() {
-  accessTokenRepository.get();
+  return accessTokenRepository.get();
+}
+
+export function getAccessTokenPayload(): AccessTokenPayloadDTO | undefined {
+  try {
+    const token = accessTokenRepository.get();
+    return token == null ? undefined : (jwtDecode(token) as AccessTokenPayloadDTO);
+  } catch (error) {
+    return undefined;
+  }
+}
+
+export function isAuthenticated(): boolean {
+  let tokenPayload = getAccessTokenPayload();
+  return tokenPayload && tokenPayload.exp * 1000 > Date.now() ? true : false;
+}
+
+export function hasAnyRoles(roles: RoleEnum[]): boolean {
+  if (roles.length === 0) {
+    return true;
+  }
+  const tokenPayload = getAccessTokenPayload();
+  if (tokenPayload !== undefined) {
+    for (var i = 0; i < roles.length; i++) {
+      if (tokenPayload.authorities.includes(roles[i])) {
+        return true;
+      }
+    }
+    //return roles.some(role => tokenData.authorities.includes(role));
+  }
+  return false;
 }
